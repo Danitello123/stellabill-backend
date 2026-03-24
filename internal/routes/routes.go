@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"stellarbill-backend/internal/handlers"
+	"stellarbill-backend/internal/middleware"
 )
 
 func Register(r *gin.Engine) {
@@ -11,9 +12,17 @@ func Register(r *gin.Engine) {
 	api := r.Group("/api")
 	{
 		api.GET("/health", handlers.Health)
-		api.GET("/subscriptions", handlers.ListSubscriptions)
-		api.GET("/subscriptions/:id", handlers.GetSubscription)
-		api.GET("/plans", handlers.ListPlans)
+
+		subscriptions := api.Group("/subscriptions")
+		{
+			subscriptions.GET("", middleware.ValidateQuery[handlers.SubscriptionQuery](), handlers.ListSubscriptions)
+			subscriptions.GET("/:id", middleware.ValidatePath[handlers.SubscriptionPath](), handlers.GetSubscription)
+		}
+
+		plans := api.Group("/plans")
+		{
+			plans.GET("", middleware.ValidateQuery[handlers.PlanQuery](), handlers.ListPlans)
+		}
 	}
 }
 

@@ -16,6 +16,16 @@ type Subscription struct {
 	NextBilling string `json:"next_billing,omitempty"`
 }
 
+type SubscriptionQuery struct {
+	Page   int    `form:"page" binding:"omitempty,min=1"`
+	Limit  int    `form:"limit" binding:"omitempty,min=1,max=100"`
+	Status string `form:"status" binding:"omitempty,oneof=active inactive canceled"`
+}
+
+type SubscriptionPath struct {
+	ID string `uri:"id" binding:"required,uuid4"` // Assuming ID should be a UUID
+}
+
 func ListSubscriptions(c *gin.Context) {
 	// TODO: load from DB, filter by merchant from JWT/API key
 	subscriptions := []Subscription{}
