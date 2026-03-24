@@ -2,18 +2,32 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	"stellarbill-backend/internal/auth"
+	"stellarbill-backend/internal/config"
 	"stellarbill-backend/internal/handlers"
 )
 
 func Register(r *gin.Engine) {
+	cfg := config.Load()
+
 	r.Use(corsMiddleware())
 
 	api := r.Group("/api")
 	{
+		// Public health check - no authentication required
 		api.GET("/health", handlers.Health)
-		api.GET("/subscriptions", handlers.ListSubscriptions)
-		api.GET("/subscriptions/:id", handlers.GetSubscription)
-		api.GET("/plans", handlers.ListPlans)
+
+		// Authenticated routes requiring authentication
+		authenticated := api.Group("")
+		authenticated.Use(auth.AuthMiddleware(cfg.JWTSecret))
+		{
+			// List plans - any authenticated user
+			authenticated.GET("/plans", handlers.ListPlans)
+
+			// Subscriptions - requires admin or merchant role
+			authenticated.GET("/subscriptions", auth.AuthzMiddleware(auth.RoleAdmin, auth.RoleMerchant), handlers.ListSubscriptions)
+			authenticated.GET("/subscriptions/:id", auth.AuthzMiddleware(auth.RoleAdmin, auth.RoleMerchant), handlers.GetSubscription)
+		}
 	}
 }
 
