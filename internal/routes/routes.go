@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
+	"stellarbill-backend/internal/auth"
 	"stellarbill-backend/internal/handlers"
 )
 
@@ -11,9 +12,25 @@ func Register(r *gin.Engine) {
 	api := r.Group("/api")
 	{
 		api.GET("/health", handlers.Health)
-		api.GET("/subscriptions", handlers.ListSubscriptions)
-		api.GET("/subscriptions/:id", handlers.GetSubscription)
-		api.GET("/plans", handlers.ListPlans)
+
+		// Public read (user + admin)
+		api.GET("/plans",
+			auth.RequirePermission(auth.PermReadPlans),
+			handlers.ListPlans,
+		)
+
+		api.GET("/subscriptions",
+			auth.RequirePermission(auth.PermReadSubscriptions),
+			handlers.ListSubscriptions,
+		)
+
+		api.GET("/subscriptions/:id",
+			auth.RequirePermission(auth.PermReadSubscriptions),
+			handlers.GetSubscription,
+		)
+
+		// Example future admin-only endpoints:
+		// api.POST("/plans", auth.RequirePermission(auth.PermManagePlans), ...)
 	}
 }
 
