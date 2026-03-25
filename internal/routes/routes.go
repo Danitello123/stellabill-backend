@@ -58,6 +58,11 @@ func Register(r *gin.Engine) {
 		api.GET("/subscriptions", handlers.ListSubscriptions)
 		api.GET("/subscriptions/:id", middleware.AuthMiddleware(jwtSecret), handlers.NewGetSubscriptionHandler(svc))
 		api.GET("/plans", handlers.ListPlans)
+
+		admin := api.Group("/admin")
+		{
+			admin.POST("/purge", adminHandler.PurgeCache)
+		}
 	}
 
 	return nil

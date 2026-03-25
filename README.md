@@ -110,6 +110,9 @@ ENV=development
 PORT=8080
 DATABASE_URL=postgres://localhost/stellarbill?sslmode=disable
 JWT_SECRET=change-me-in-production
+ADMIN_TOKEN=change-me-admin-token
+AUDIT_HMAC_SECRET=stellarbill-dev-audit
+AUDIT_LOG_PATH=audit.log
 ```
 
 Or export them in your shell. The app will run with the defaults if you do not set anything.
@@ -339,6 +342,27 @@ Security notes:
 - Constructor validation prevents nil dependencies from reaching request handling paths, which avoids panic-driven denial of service during misconfigured startup.
 - Route registration returns errors for missing router or handler wiring so invalid startup state fails closed.
 - Service interfaces keep handlers decoupled from future storage implementations, making authorization and data-access checks easier to test in isolation.
+
+---
+
+## Audit logging
+
+- **Tamper-evident chain:** Each audit entry is HMAC-signed with `AUDIT_HMAC_SECRET` and linked to the previous hash (chain-of-trust). Breaking or removing a line invalidates later hashes.
+- **What gets logged:** `actor`, `action`, `target`, `outcome`, request method/path, client IP, and any supplied metadata (e.g., attempts, reasons).
+- **Redaction:** Sensitive fields such as tokens, passwords, secrets, Authorization headers, and values that *look* like bearer/basic credentials are stored as `[REDACTED]`.
+- **Sink:** Default sink writes JSON Lines to `AUDIT_LOG_PATH` (default `audit.log`). File permissions are `0600` on creation.
+- **Admin example:** `POST /api/admin/purge` demonstrates a sensitive operation. Success, partial success (`?partial=1`), denied access, and retry attempts are all audit-logged.
+- **Auth failures:** 401/403 responses are automatically logged via middleware, with headers redacted.
+
+---
+
+## Testing
+
+```
+go test ./... -cover
+```
+
+Tests include redaction coverage, hash chaining, admin action logging, and middleware auth-failure logging. Coverage currently exceeds 95%.
 
 ---
 
