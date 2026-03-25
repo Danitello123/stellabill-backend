@@ -1,42 +1,33 @@
 package routes
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"stellarbill-backend/internal/handlers"
 	"stellarbill-backend/internal/middleware"
+	"stellarbill-backend/internal/repository"
+	"stellarbill-backend/internal/service"
 )
 
 func Register(r *gin.Engine) {
 	r.Use(corsMiddleware())
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "dev-secret"
+	}
+
+	subRepo := repository.NewMockSubscriptionRepo()
+	planRepo := repository.NewMockPlanRepo()
+	svc := service.NewSubscriptionService(subRepo, planRepo)
+
 	api := r.Group("/api")
 	{
 		api.GET("/health", handlers.Health)
-		
-		// Feature-flagged endpoints
-		api.GET("/subscriptions", 
-			middleware.FeatureFlagWithDefault("subscriptions_enabled", true),
-			handlers.ListSubscriptions)
-		api.GET("/subscriptions/:id", 
-			middleware.FeatureFlagWithDefault("subscriptions_enabled", true),
-			handlers.GetSubscription)
-		api.GET("/plans", 
-			middleware.FeatureFlagWithDefault("plans_enabled", true),
-			handlers.ListPlans)
-		
-		// Example of new feature that can be toggled
-		api.GET("/billing/new-flow", 
-			middleware.FeatureFlag("new_billing_flow"),
-			func(c *gin.Context) {
-				c.JSON(200, gin.H{"message": "New billing flow is enabled"})
-			})
-		
-		// Example requiring multiple flags
-		api.GET("/analytics/advanced", 
-			middleware.RequireAllFeatureFlags("advanced_analytics", "subscriptions_enabled"),
-			func(c *gin.Context) {
-				c.JSON(200, gin.H{"message": "Advanced analytics available"})
-			})
+		api.GET("/subscriptions", handlers.ListSubscriptions)
+		api.GET("/subscriptions/:id", middleware.AuthMiddleware(jwtSecret), handlers.NewGetSubscriptionHandler(svc))
+		api.GET("/plans", handlers.ListPlans)
 	}
 }
 
